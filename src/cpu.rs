@@ -80,6 +80,7 @@ impl Cpu {
             0xA000..=0xAFFF => self.op_ldi(opcode),
             0xB000..=0xBFFF => self.op_jp_v0(opcode),
             0xC000..=0xCFFF => self.op_rnd(opcode),
+            0xD000..=0xDFFF => self.op_drw(opcode),
             _ => eprint!("Unknown opcode : {:04X}", opcode),
         }
     }
@@ -236,5 +237,28 @@ impl Cpu {
         let random: u8 = rand::thread_rng().gen_range(0..=255);
 
         self.registers[x as usize] = kk as u8 & random;
+    }
+
+    fn op_drw(&mut self, opcode: u16) {
+        let x = self.registers[((opcode >> 8) & 0x0F) as usize] as u16;
+        let y = self.registers[((opcode >> 4) & 0x0F) as usize] as u16;
+        let nibble = opcode & 0x0F;
+
+        for byte_index in 0..nibble {
+            let byte = self.memory[self.index_register as usize + byte_index as usize];
+            for bit_position in 0..8 {
+                let bit = (byte >> (7 - bit_position)) & 0x1 == 1;
+
+                let collision = self.display.set_pixel(
+                    ((x + bit_position) % 64) as usize,
+                    ((y + byte_index) % 32) as usize,
+                    bit,
+                );
+
+                if collision {
+                    self.registers[0xF] = 1;
+                }
+            }
+        }
     }
 }
