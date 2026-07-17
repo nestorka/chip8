@@ -1,4 +1,5 @@
 mod cpu;
+mod display;
 
 fn main() {
     let mut cpu = cpu::Cpu::new();

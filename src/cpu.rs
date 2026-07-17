@@ -1,3 +1,4 @@
+use crate::display::Display;
 use rand::Rng;
 use std::fs;
 
@@ -10,6 +11,7 @@ pub struct Cpu {
     pub stack_pointer: u8,
     pub delay_timer: u8,
     pub sound_timer: u8,
+    pub display: Display,
 }
 
 impl Cpu {
@@ -23,6 +25,7 @@ impl Cpu {
             stack_pointer: 0,
             delay_timer: 0,
             sound_timer: 0,
+            display: Display::new(),
         }
     }
 
@@ -81,7 +84,9 @@ impl Cpu {
         }
     }
 
-    fn op_cls(&mut self) {}
+    fn op_cls(&mut self) {
+        self.display.clear();
+    }
 
     fn op_call(&mut self, opcode: u16) {
         self.level_stack[self.stack_pointer as usize] = self.program_counter;
