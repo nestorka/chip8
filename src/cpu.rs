@@ -2,6 +2,25 @@ use crate::display::Display;
 use rand::Rng;
 use std::fs;
 
+const FONTSET: [u8; 80] = [
+    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+    0x20, 0x60, 0x20, 0x20, 0x70, // 1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+    0xF0, 0x80, 0xF0, 0x80, 0x80, // F
+];
+
 pub struct Cpu {
     pub registers: [u8; 16],
     pub index_register: u16,
@@ -17,11 +36,16 @@ pub struct Cpu {
 
 impl Cpu {
     pub fn new() -> Self {
+        let mut memory = [0u8; 4096];
+        for (i, &byte) in FONTSET.iter().enumerate() {
+            memory[i] = byte;
+        }
+
         Cpu {
             registers: [0; 16],
             index_register: 0,
             program_counter: 0x200,
-            memory: [0; 4096],
+            memory,
             level_stack: [0; 16],
             stack_pointer: 0,
             delay_timer: 0,
@@ -88,6 +112,21 @@ impl Cpu {
                 match last_byte {
                     0x9E => self.op_skp(opcode),
                     0xA1 => self.op_sknp(opcode),
+                    _ => eprintln!("Unknown opcode: {:04X}", opcode),
+                }
+            }
+            0xF000..=0xFFFF => {
+                let last_byte = opcode & 0x0FF;
+                match last_byte {
+                    0x07 => self.op_ldxdt(opcode),
+                    0x0A => self.op_ldxk(opcode),
+                    0x15 => self.op_lddt(opcode),
+                    0x18 => self.op_ldst(opcode),
+                    0x1E => self.op_addi(opcode),
+                    0x29 => self.op_ldf(opcode),
+                    0x33 => self.op_lbd(opcode),
+                    0x55 => self.op_ldix(opcode),
+                    0x65 => self.op_ldxi(opcode),
                     _ => eprintln!("Unknown opcode: {:04X}", opcode),
                 }
             }
@@ -302,7 +341,7 @@ impl Cpu {
 
     fn op_skp(&mut self, opcode: u16) {
         let x = ((opcode >> 8) & 0x0F) as usize;
-        if !self.keys[self.registers[x] as usize] {
+        if self.keys[self.registers[x] as usize] {
             self.program_counter += 2;
         }
     }
@@ -311,6 +350,70 @@ impl Cpu {
         let x = ((opcode >> 8) & 0x0F) as usize;
         if !self.keys[self.registers[x] as usize] {
             self.program_counter += 2;
+        }
+    }
+
+    fn op_ldxdt(&mut self, opcode: u16) {
+        let x = ((opcode >> 8) & 0x0F) as usize;
+        self.registers[x] = self.delay_timer;
+    }
+
+    fn op_ldxk(&mut self, opcode: u16) {
+        let x = ((opcode >> 8) & 0x0F) as usize;
+
+        for (i, &pressed) in self.keys.iter().enumerate() {
+            if pressed {
+                self.registers[x] = i as u8;
+                return;
+            }
+        }
+
+        //repeat if no key is pressed
+        self.program_counter -= 2;
+    }
+
+    fn op_lddt(&mut self, opcode: u16) {
+        let x = ((opcode >> 8) & 0x0F) as usize;
+        self.delay_timer = self.registers[x];
+    }
+
+    fn op_ldst(&mut self, opcode: u16) {
+        let x = ((opcode >> 8) & 0x0F) as usize;
+        self.sound_timer = self.registers[x];
+    }
+
+    fn op_addi(&mut self, opcode: u16) {
+        let x = ((opcode >> 8) & 0x0F) as usize;
+        self.index_register = self.index_register.wrapping_add(self.registers[x] as u16);
+    }
+
+    fn op_ldf(&mut self, opcode: u16) {
+        let x = ((opcode >> 8) & 0x0F) as usize;
+        self.index_register = (self.registers[x] as u16) * 5;
+    }
+
+    fn op_lbd(&mut self, opcode: u16) {
+        let x = ((opcode >> 8) & 0x0F) as usize;
+        let value = self.registers[x];
+
+        self.memory[self.index_register as usize] = value / 100;
+        self.memory[self.index_register as usize + 1] = (value / 10) % 10;
+        self.memory[self.index_register as usize + 2] = value % 10;
+    }
+
+    fn op_ldix(&mut self, opcode: u16) {
+        let x = ((opcode >> 8) & 0x0F) as usize;
+
+        for i in 0..=x {
+            self.memory[self.index_register as usize + i] = self.registers[i];
+        }
+    }
+
+    fn op_ldxi(&mut self, opcode: u16) {
+        let x = ((opcode >> 8) & 0x0F) as usize;
+
+        for i in 0..=x {
+            self.registers[i] = self.memory[self.index_register as usize + i];
         }
     }
 }

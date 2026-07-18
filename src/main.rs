@@ -1,4 +1,5 @@
 use minifb::{Key, Window, WindowOptions};
+use std::time::{Duration, Instant};
 
 mod cpu;
 mod display;
@@ -17,14 +18,26 @@ fn main() {
     .unwrap();
 
     let mut cpu = cpu::Cpu::new();
-    cpu.load_rom("roms/IBM Logo.ch8").unwrap();
+    cpu.load_rom("roms/SpaceInvaders.ch8").unwrap();
 
     let mut buffer: Vec<u32> = vec![0; WIDTH * SCALE * HEIGHT * SCALE];
+
+    let mut last_timer_update = Instant::now();
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         cpu.update_keys(&window.get_keys());
         let opcode = cpu.fetch();
         cpu.execute(opcode);
+
+        if last_timer_update.elapsed() >= Duration::from_millis(16) {
+            if cpu.delay_timer > 0 {
+                cpu.delay_timer -= 1;
+            }
+            if cpu.sound_timer > 0 {
+                cpu.sound_timer -= 1;
+            }
+            last_timer_update = Instant::now();
+        }
 
         for y in 0..HEIGHT {
             for x in 0..WIDTH {
