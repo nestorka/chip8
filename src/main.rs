@@ -22,6 +22,7 @@ fn main() {
     let mut buffer: Vec<u32> = vec![0; WIDTH * SCALE * HEIGHT * SCALE];
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
+        cpu.update_keys(&window.get_keys());
         let opcode = cpu.fetch();
         cpu.execute(opcode);
 

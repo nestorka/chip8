@@ -12,6 +12,7 @@ pub struct Cpu {
     pub delay_timer: u8,
     pub sound_timer: u8,
     pub display: Display,
+    pub keys: [bool; 16],
 }
 
 impl Cpu {
@@ -26,6 +27,7 @@ impl Cpu {
             delay_timer: 0,
             sound_timer: 0,
             display: Display::new(),
+            keys: [false; 16],
         }
     }
 
@@ -81,7 +83,43 @@ impl Cpu {
             0xB000..=0xBFFF => self.op_jp_v0(opcode),
             0xC000..=0xCFFF => self.op_rnd(opcode),
             0xD000..=0xDFFF => self.op_drw(opcode),
+            0xE000..=0xEFFF => {
+                let last_byte = opcode & 0x00FF;
+                match last_byte {
+                    0x9E => self.op_skp(opcode),
+                    0xA1 => self.op_sknp(opcode),
+                    _ => eprintln!("Unknown opcode: {:04X}", opcode),
+                }
+            }
             _ => eprint!("Unknown opcode : {:04X}", opcode),
+        }
+    }
+
+    pub fn update_keys(&mut self, keys: &[minifb::Key]) {
+        self.keys = [false; 16];
+        for key in keys {
+            let index = match key {
+                minifb::Key::X => Some(0x0),
+                minifb::Key::Key1 => Some(0x1),
+                minifb::Key::Key2 => Some(0x2),
+                minifb::Key::Key3 => Some(0x3),
+                minifb::Key::Q => Some(0x4),
+                minifb::Key::W => Some(0x5),
+                minifb::Key::E => Some(0x6),
+                minifb::Key::A => Some(0x7),
+                minifb::Key::S => Some(0x8),
+                minifb::Key::D => Some(0x9),
+                minifb::Key::Z => Some(0xA),
+                minifb::Key::C => Some(0xB),
+                minifb::Key::Key4 => Some(0xC),
+                minifb::Key::R => Some(0xD),
+                minifb::Key::F => Some(0xE),
+                minifb::Key::V => Some(0xF),
+                _ => None,
+            };
+            if let Some(i) = index {
+                self.keys[i] = true;
+            }
         }
     }
 
@@ -259,6 +297,20 @@ impl Cpu {
                     self.registers[0xF] = 1;
                 }
             }
+        }
+    }
+
+    fn op_skp(&mut self, opcode: u16) {
+        let x = ((opcode >> 8) & 0x0F) as usize;
+        if !self.keys[self.registers[x] as usize] {
+            self.program_counter += 2;
+        }
+    }
+
+    fn op_sknp(&mut self, opcode: u16) {
+        let x = ((opcode >> 8) & 0x0F) as usize;
+        if !self.keys[self.registers[x] as usize] {
+            self.program_counter += 2;
         }
     }
 }
