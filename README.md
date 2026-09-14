@@ -34,8 +34,6 @@ cargo build --release
 cargo run
 ```
 
-Or place any `.ch8` ROM file in the `roms/` folder and pass the path as argument.
-
 ## Controls
 
 Chip-8 has a 16-key hexadecimal keypad mapped to your keyboard:
