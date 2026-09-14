@@ -18,7 +18,7 @@ fn main() {
     .unwrap();
 
     let mut cpu = cpu::Cpu::new();
-    cpu.load_rom("roms/SpaceInvaders.ch8").unwrap();
+    cpu.load_rom("roms/dinorun.ch8").unwrap();
 
     let mut buffer: Vec<u32> = vec![0; WIDTH * SCALE * HEIGHT * SCALE];
 
