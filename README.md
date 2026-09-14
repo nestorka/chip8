@@ -31,7 +31,7 @@ cargo build --release
 ## Running
 
 ```bash
-cargo run --release -- roms/IBM\ Logo.ch8
+cargo run
 ```
 
 Or place any `.ch8` ROM file in the `roms/` folder and pass the path as argument.
